@@ -32,39 +32,71 @@ submit_rent = False
 submit_return = False
 input_bike_modes = []
 
+
+# map display func
+def show_station_map(user_loc, closest_station, data):
+    m1 = folium.Map(location=user_loc, zoom_start=16, tiles='cartodbpositron')
+    for _, row in data.iterrows():
+        marker_color = get_mark_colour(row['num_bikes_available'])
+        folium.CircleMarker(
+            location=[row['lat'], row['lon']],
+            radius=2,
+            color=marker_color,
+            fill=True,
+            fill_color=marker_color,
+            fill_opacity=0.7,
+            popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
+                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
+                                f"Mechanical Bike Available: {row['mechanical']}<br>"
+                                f"eBike Available: {row['ebike']}", max_width=300)
+        ).add_to(m1)
+    folium.Marker(
+        location=user_loc,
+        icon=folium.Icon(color="blue", icon="person", prefix="fa")
+    ).add_to(m1)
+    folium.Marker(location=(closest_station[1], closest_station[2]),
+                    icon=folium.Icon(color="red", icon="bicycle", prefix="fa")
+                    ).add_to(m1)
+    coordinates, duration = run_osrm(closest_station, user_loc)
+    folium.PolyLine(
+        locations=coordinates,
+        color="blue",
+        weight=5,
+        tooltip=f"ETA: {duration} min",
+    ).add_to(m1)
+    folium_static(m1)
+    with cols[2]:
+        st.metric(label=":green[Travel Time (min)]", value=duration)
+
+# sidebar options
 with st.sidebar:
-    bike_method = st.selectbox("Renting or returning?", ["Rent", "Return"])
-    if bike_method == "Rent":
-        input_bike_modes = st.multiselect(
-            "Select bike type",
-            ["Bike", "E-bike"],
-        )
+    with st.form("search_form"):
+        bike_method = st.selectbox("Renting or returning?", ["Rent", "Return"])
+        
+        if bike_method == "Rent":
+            input_bike_modes = st.multiselect(
+                "Select bike type",
+                ["Mechanical", "E-bike"],
+            )
+        
         st.subheader("My Location")
         input_street = st.text_input("Street address", "")
-        driving = st.checkbox("I'm driving")
-        submit_rent = st.button("Find nearest station", type = 'primary')
+        # driving = st.checkbox("I'm driving")
+        submit_button = st.form_submit_button("Find nearest station", type='primary')
 
-        if submit_rent:
-            if input_street!= "":
-                my_loc = geocode(input_street+ " Toronto Canada")
-                if my_loc == '':
-                    st.markdown(":red[Address invalid. Are you in Toronto?]")
+    if submit_button:
+        if input_street != "":
+            my_loc = geocode(input_street + " Toronto Canada")
+            if my_loc == '':
+                st.markdown(":red[Address invalid. Are you in Toronto?]")
             else:
-                st.markdown(":red[Enter an address]")
-
-    elif bike_method == "Return":
-        st.subheader("My Location")
-        input_street = st.text_input("Street address", "")
-        driving = st.checkbox("I'm driving")
-        submit_return = st.button("Find nearest station", type = 'primary')
-
-        if submit_return:
-            if input_street!= "":
-                my_loc_return = geocode(input_street+ " Toronto Canada")
-                if my_loc_return == '':
-                    st.markdown(":red[Address invalid. Are you in Toronto?]")
-            else:
-                st.markdown(":red[Enter an address]")
+                if bike_method == "Rent":
+                    submit_rent = True
+                else:
+                    submit_return = True
+           
+        else:
+            st.markdown(":red[Enter an address]")
 
 # generic map
 if not submit_rent and not submit_return:
@@ -87,75 +119,11 @@ if not submit_rent and not submit_return:
 
     folium_static(m)
 
-# finding stations
-elif submit_rent and input_street != "" and my_loc != '':
-    closest_station = get_bike_avail(my_loc, data, input_bike_modes)
-    center = my_loc
-    m1 = folium.Map(location=center, zoom_start=16, tiles='cartodbpositron')
-    for _, row in data.iterrows():
-        marker_color = get_mark_colour(row['num_bikes_available'])  
-        folium.CircleMarker(
-            location=[row['lat'], row['lon']],
-            radius=2,
-            color=marker_color,
-            fill=True,
-            fill_color=marker_color,
-            fill_opacity=0.7,
-            popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
-                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
-                                f"Mechanical Bike Available: {row['mechanical']}<br>"
-                                f"eBike Available: {row['ebike']}", max_width=300)
-        ).add_to(m1)
-    folium.Marker(
-        location=my_loc,
-        icon=folium.Icon(color="blue", icon="person", prefix="fa")
-    ).add_to(m1)
-    folium.Marker(location=(closest_station[1], closest_station[2]),
-                    icon=folium.Icon(color="red", icon="bicycle", prefix="fa")
-                    ).add_to(m1)
-    coordinates, duration = run_osrm(closest_station, my_loc)  # Get route coordinates and duration
-    folium.PolyLine(
-        locations=coordinates,
-        color="blue",
-        weight=5,
-        tooltip="ETA: {}".format(duration),
-    ).add_to(m1)
-    folium_static(m1)  # Display the map in the Streamlit app
-    with cols[2]:
-        st.metric(label=":green[Travel Time (min)]", value=duration)  # Display travel time
 
-elif submit_return and input_street != "" and my_loc_return != '':
-    closest_station = get_dock_avail(my_loc_return, data)  # Get dock availability (id, lat, lon)
-    center = my_loc_return
-    m1 = folium.Map(location=center, zoom_start=16, tiles='cartodbpositron')  # Create a detailed map
-    for _, row in data.iterrows():
-        marker_color = get_mark_colour(row['num_bikes_available'])  # Determine marker color based on bikes available
-        folium.CircleMarker(
-            location=[row['lat'], row['lon']],
-            radius=2,
-            color=marker_color,
-            fill=True,
-            fill_color=marker_color,
-            fill_opacity=0.7,
-            popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
-                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
-                                f"Mechanical Bike Available: {row['mechanical']}<br>"
-                                f"eBike Available: {row['ebike']}", max_width=300)
-        ).add_to(m1)
-    folium.Marker(
-        location=my_loc_return,
-        icon=folium.Icon(color="blue", icon="person", prefix="fa")
-    ).add_to(m1)
-    folium.Marker(location=(closest_station[1], closest_station[2]),
-                    icon=folium.Icon(color="red", icon="bicycle", prefix="fa")
-                    ).add_to(m1)
-    coordinates, duration = run_osrm(closest_station, my_loc_return)  # Get route coordinates and duration
-    folium.PolyLine(
-        locations=coordinates,
-        color="blue",
-        weight=5,
-        tooltip="ETA: {}".format(duration),
-    ).add_to(m1)
-    folium_static(m1)  # Display the map in the Streamlit app
-    with cols[2]:
-        st.metric(label=":green[Travel Time (min)]", value=duration)  # Display travel time
+if submit_rent and input_street != "" and my_loc != '':
+    closest_station = get_bike_avail(my_loc, data, input_bike_modes)
+    show_station_map(my_loc, closest_station, data)
+
+elif submit_return and input_street != "" and my_loc != '':
+    closest_station = get_dock_avail(my_loc, data)
+    show_station_map(my_loc, closest_station, data)

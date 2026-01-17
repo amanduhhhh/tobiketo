@@ -30,6 +30,7 @@ def query_station_status(url):
         print(f"Error querying station status: {e}")
         return pd.DataFrame()
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour (station locations change rarely)
 def get_station_location(url):
     try:
         with urllib.request.urlopen(url) as response:
@@ -76,14 +77,22 @@ def geocode(address):
 
 def get_bike_avail(location, df, input_bike_modes):
     """Calculates distance from each station to user, return nearest station id, lat, lon"""
+    # Map user-friendly names to dataframe column names
+    bike_type_mapping = {
+        "Mechanical": "mechanical",
+        "E-bike": "ebike"
+    }
+    
     df['distance'] = float('nan')
     for i in range(len(df)):
         df.loc[i, 'distance'] = geodesic(location, (df['lat'][i], df['lon'][i])).km
 
-    if len(input_bike_modes) == 0 or len(input_bike_modes) > 2:
+    if len(input_bike_modes) == 0 or len(input_bike_modes) >= 2:
         df = df[(df['ebike'] > 0) | (df['mechanical'] > 0)]
     else:
-        df = df[df[input_bike_modes[0]] > 0]
+        # One specific type selected
+        column_name = bike_type_mapping.get(input_bike_modes[0], input_bike_modes[0])
+        df = df[df[column_name] > 0]
 
     if len(df) == 0:
         return []
