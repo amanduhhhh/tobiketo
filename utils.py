@@ -1,7 +1,6 @@
 import urllib  
 import json
 import pandas as pd  # for data
-import folium  # for maps
 import datetime as dt  
 from geopy.distance import geodesic  # distance calcs
 from geopy.geocoders import Nominatim  # geocoding
@@ -17,15 +16,16 @@ def query_station_status(url):
         df = df[df.is_renting == 1] 
         df = df[df.is_returning == 1]
         df = df.drop_duplicates(['station_id', 'last_reported'])
-        df.last_reported = df.last_reported.map(lambda x: dt.datetime.utcfromtimestamp(x))
+        df.last_reported = df.last_reported.map(lambda x: dt.datetime.fromtimestamp(x))
 
-        df['time'] = data['last_updated']
-        df.time = df.time.map(lambda x: dt.datetime.fromtimestamp(x))
-        df = df.set_index('time') 
-        df.index = df.index.tz_localize('UTC')
+        # df['time'] = data['last_updated']
+        # df.time = df.time.map(lambda x: dt.datetime.fromtimestamp(x))
+        # df = df.set_index('time') 
+        # df.index = df.index.tz_localize('UTC')
         df = pd.concat([df, df['num_bikes_available_types'].apply(pd.Series)], axis=1)
 
         return df
+        
     except (urllib.error.URLError, json.JSONDecodeError, KeyError) as e:
         print(f"Error querying station status: {e}")
         return pd.DataFrame()
