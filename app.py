@@ -19,13 +19,13 @@ data = join_location(data_df, location_df)
 
 cols = st.columns(3)
 with cols[0]:
-    st.metric(label="Bikes available", value=data['num_bikes_available'].sum())
-    st.metric(label = "Stations with bikes available", value = (data['num_bikes_available'] > 0).sum())
+    st.metric(label=":red[Bikes available]", value=data['num_bikes_available'].sum())
+    st.metric(label = ":red[Stations with bikes available]", value = (data['num_bikes_available'] > 0).sum())
 with cols[1]:
-    st.metric(label="E-bikes available", value=data['ebike'].sum())
-    st.metric(label = "Stations with e-bikes available", value = (data['ebike'] > 0).sum())
+    st.metric(label=":red[E-bikes available]", value=data['ebike'].sum())
+    st.metric(label = ":red[Stations with e-bikes available]", value = (data['ebike'] > 0).sum())
 with cols[2]:
-    st.metric(label = "Stations with docks available", value = (data['num_docks_available'] > 0).sum())
+    st.metric(label = ":red[Stations with docks available]", value = (data['num_docks_available'] > 0).sum())
     travel_time_placeholder = st.empty()
 
 my_loc = 0
