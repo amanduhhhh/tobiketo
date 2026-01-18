@@ -12,7 +12,7 @@ GREEN = '#50c468'
 YELLOW = '#f6c942'
 RED = '#e47367'
 
-@st.cache_data  
+@st.cache_data(ttl=180)
 def query_station_status(url):
     try:
         with urllib.request.urlopen(url) as response:
@@ -36,7 +36,7 @@ def query_station_status(url):
         print(f"Error querying station status: {e}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour (station locations change rarely)
+@st.cache_data(ttl=3600)  
 def get_station_location(url):
     try:
         with urllib.request.urlopen(url) as response:
@@ -68,6 +68,7 @@ def get_mark_colour(num_bikes_available):
     else:
         return RED
 
+@st.cache_data(ttl=86400)  
 def geocode(address):
     try:
         geolocator = Nominatim(user_agent="amanduhhhh")
@@ -83,20 +84,16 @@ def geocode(address):
 
 def get_bike_avail(location, df, input_bike_modes):
     """Calculates distance from each station to user, return nearest station id, lat, lon"""
-    # Map user-friendly names to dataframe column names
     bike_type_mapping = {
         "Mechanical": "mechanical",
         "E-bike": "ebike"
     }
     
-    df['distance'] = float('nan')
-    for i in range(len(df)):
-        df.loc[i, 'distance'] = geodesic(location, (df['lat'][i], df['lon'][i])).km
+    df['distance'] = df.apply(lambda row: geodesic(location, (row['lat'], row['lon'])).km, axis=1)
 
     if len(input_bike_modes) == 0 or len(input_bike_modes) >= 2:
         df = df[(df['ebike'] > 0) | (df['mechanical'] > 0)]
     else:
-        # One specific type selected
         column_name = bike_type_mapping.get(input_bike_modes[0], input_bike_modes[0])
         df = df[df[column_name] > 0]
 
@@ -109,9 +106,7 @@ def get_bike_avail(location, df, input_bike_modes):
 
 def get_dock_avail(location, df):
     """Calculates distance from each dock to user, return nearest station id, lat, lon"""
-    df['distance'] = float('nan')
-    for i in range(len(df)):
-        df.loc[i, 'distance'] = geodesic(location, (df['lat'][i], df['lon'][i])).km
+    df['distance'] = df.apply(lambda row: geodesic(location, (row['lat'], row['lon'])).km, axis=1)
         
     df = df[df['num_docks_available'] > 0]
     
@@ -122,6 +117,7 @@ def get_dock_avail(location, df):
     closest_details = [closest['station_id'], closest['lat'], closest['lon']]
     return closest_details
 
+@st.cache_data(ttl=3600)  
 def run_osrm(dest_station, my_loc, profile='foot'):
     if not dest_station or not my_loc or len(dest_station) < 3:
         return [], 0

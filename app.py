@@ -11,9 +11,10 @@ st.title(":orange[Toronto Bike Share Status]")
 st.markdown("Need to borrow or dock a bike? Enter your location and we'll find the nearest bike station!")
 
 # fetch data
-data_df = query_station_status(station_url) 
-location_df = get_station_location(location_url)
-data = join_location(data_df, location_df)
+with st.spinner('Loading bike station data...'):
+    data_df = query_station_status(station_url) 
+    location_df = get_station_location(location_url)
+    data = join_location(data_df, location_df)
 # st.dataframe(data)
 
 cols = st.columns(3)
@@ -32,6 +33,25 @@ submit_rent = False
 submit_return = False
 input_bike_modes = []
 
+def create_generic_map(data):
+    """Create the default map view"""
+    center = [43.65306613746548, -79.38815311015]  
+    m = folium.Map(location=center, zoom_start=13, tiles='cartodbpositron')  
+    for _, row in data.iterrows():
+        marker_color = get_mark_colour(row['num_bikes_available'])  
+        folium.CircleMarker(
+            location=[row['lat'], row['lon']],
+            radius=2,
+            color=marker_color,
+            fill=True,
+            fill_color=marker_color,
+            fill_opacity=0.7,
+            popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
+                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
+                                f"Mechanical: {row['mechanical']}<br>"
+                                f"E-bike: {row['ebike']}", max_width=300)
+        ).add_to(m)
+    return m
 
 # map display func
 def show_station_map(user_loc, closest_station, data, profile='foot'):
@@ -104,32 +124,22 @@ with st.sidebar:
         else:
             st.markdown(":red[Enter an address]")
 
-# generic map
-if not submit_rent and not submit_return:
-    center = [43.65306613746548, -79.38815311015]  
-    m = folium.Map(location=center, zoom_start=13, tiles='cartodbpositron')  
-    for _, row in data.iterrows():
-        marker_color = get_mark_colour(row['num_bikes_available'])  
-        folium.CircleMarker(
-            location=[row['lat'], row['lon']],
-            radius=2,
-            color=marker_color,
-            fill=True,
-            fill_color=marker_color,
-            fill_opacity=0.7,
-            popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
-                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
-                                f"Mechanical: {row['mechanical']}<br>"
-                                f"E-bike: {row['ebike']}", max_width=300)
-        ).add_to(m)
+# Create a container for the map to avoid ghost elements
+map_container = st.container()
 
-    folium_static(m)
+with map_container:
+    # generic map
+    if not submit_rent and not submit_return:
+        with st.spinner('Generating map...'):
+            m = create_generic_map(data)
+            folium_static(m)
 
+    elif submit_rent and input_street != "" and my_loc != '':
+        with st.spinner('Finding nearest station with bikes...'):
+            closest_station = get_bike_avail(my_loc, data, input_bike_modes)
+            show_station_map(my_loc, closest_station, data, profile='foot')
 
-if submit_rent and input_street != "" and my_loc != '':
-    closest_station = get_bike_avail(my_loc, data, input_bike_modes)
-    show_station_map(my_loc, closest_station, data, profile='foot')
-
-elif submit_return and input_street != "" and my_loc != '':
-    closest_station = get_dock_avail(my_loc, data)
-    show_station_map(my_loc, closest_station, data, profile='bike')
+    elif submit_return and input_street != "" and my_loc != '':
+        with st.spinner('Finding nearest station with available docks...'):
+            closest_station = get_dock_avail(my_loc, data)
+            show_station_map(my_loc, closest_station, data, profile='bike')
