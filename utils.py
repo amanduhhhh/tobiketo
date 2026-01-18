@@ -1,3 +1,4 @@
+from math import ceil
 import urllib  
 import json
 import pandas as pd  # for data
@@ -5,6 +6,11 @@ import datetime as dt
 from geopy.distance import geodesic  # distance calcs
 from geopy.geocoders import Nominatim  # geocoding
 import streamlit as st  # web app framework
+
+# Map marker colors
+GREEN = '#50c468'
+YELLOW = '#f6c942'
+RED = '#e47367'
 
 @st.cache_data  
 def query_station_status(url):
@@ -56,11 +62,11 @@ def join_location(df1, df2):
 
 def get_mark_colour(num_bikes_available):
     if num_bikes_available > 3:
-        return 'green'
+        return GREEN
     elif num_bikes_available >=1:
-        return 'yellow'
+        return YELLOW
     else:
-        return 'red'
+        return RED
 
 def geocode(address):
     try:
@@ -116,12 +122,12 @@ def get_dock_avail(location, df):
     closest_details = [closest['station_id'], closest['lat'], closest['lon']]
     return closest_details
 
-def run_osrm(dest_station, my_loc):
+def run_osrm(dest_station, my_loc, profile='foot'):
     if not dest_station or not my_loc or len(dest_station) < 3:
         return [], 0
     start = f"{my_loc[1]},{my_loc[0]}"
     end = f"{dest_station[2]},{dest_station[1]}"
-    url = f"http://router.project-osrm.org/route/v1/driving/{start};{end}?geometries=geojson"
+    url = f"http://router.project-osrm.org/route/v1/{profile}/{start};{end}?geometries=geojson"
 
     req = urllib.request.Request(url, headers={'Content-type': 'application/json'})
 
@@ -136,7 +142,7 @@ def run_osrm(dest_station, my_loc):
         coord_lst = route_json['routes'][0]['geometry']['coordinates']
         coords = [(coord[1], coord[0]) for coord in coord_lst]
 
-        duration = round(route_json['routes'][0]['duration'] / 60, 2)
+        duration = ceil(route_json['routes'][0]['duration'] / 60)
         return coords, duration
     except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError) as e:
         print(f"Error getting route: {e}")

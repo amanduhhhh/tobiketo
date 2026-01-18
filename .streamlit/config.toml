@@ -1,0 +1,11 @@
+[theme]
+base="dark"
+primaryColor="#d47673"
+backgroundColor="#1f1f22"
+secondaryBackgroundColor="#2d2d32"
+textColor="#eeecec"
+font="serif"
+redColor="#f1c16e"
+orangeColor = "#cb4641"
+yellowColor = "#ebc34c"
+greenColor = "#77c688"
