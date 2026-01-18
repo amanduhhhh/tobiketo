@@ -71,15 +71,20 @@ def get_mark_colour(num_bikes_available):
 @st.cache_data(ttl=86400)  
 def geocode(address):
     try:
-        geolocator = Nominatim(user_agent="amanduhhhh")
+        geolocator = Nominatim(
+            user_agent="to-bike-to/1.0 (amandaxi2024@gmail.com)",
+            timeout=10
+        )
         location = geolocator.geocode(address)
 
         if location is None:
+            print(f"Geocoding returned None for address: {address}")
             return ''
         else:
+            print(f"Successfully geocoded: {address} -> ({location.latitude}, {location.longitude})")
             return (location.latitude, location.longitude)
     except Exception as e:
-        print(f"Error geocoding address: {e}")
+        print(f"Error geocoding address '{address}': {type(e).__name__} - {e}")
         return ''
 
 def get_bike_avail(location, df, input_bike_modes):
