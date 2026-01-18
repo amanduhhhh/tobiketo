@@ -11,10 +11,10 @@ st.title(":orange[Toronto Bike Share Status]")
 st.markdown("Need to borrow or dock a bike? Enter your location and we'll find the nearest bike station!")
 
 # fetch data
-with st.spinner('Loading bike station data...'):
-    data_df = query_station_status(station_url) 
-    location_df = get_station_location(location_url)
-    data = join_location(data_df, location_df)
+# with st.spinner('Loading bike station data...'):
+data_df = query_station_status(station_url) 
+location_df = get_station_location(location_url)
+data = join_location(data_df, location_df)
 # st.dataframe(data)
 
 cols = st.columns(3)
@@ -26,6 +26,7 @@ with cols[1]:
     st.metric(label = "Stations with e-bikes available", value = (data['ebike'] > 0).sum())
 with cols[2]:
     st.metric(label = "Stations with docks available", value = (data['num_docks_available'] > 0).sum())
+    travel_time_placeholder = st.empty()
 
 my_loc = 0
 my_loc_return = 0
@@ -47,14 +48,14 @@ def create_generic_map(data):
             fill_color=marker_color,
             fill_opacity=0.7,
             popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
-                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
-                                f"Mechanical: {row['mechanical']}<br>"
-                                f"E-bike: {row['ebike']}", max_width=300)
+                                f"Mechanical bikes: {row['mechanical']}<br>"
+                                f"E-bikes: {row['ebike']}<br>"
+                                f"Docks available: {row['num_docks_available']}", max_width=300)
         ).add_to(m)
     return m
 
 # map display func
-def show_station_map(user_loc, closest_station, data, profile='foot'):
+def show_station_map(user_loc, closest_station, data, metric_placeholder, profile='foot'):
     m1 = folium.Map(location=user_loc, zoom_start=16, tiles='cartodbpositron')
     for _, row in data.iterrows():
         marker_color = get_mark_colour(row['num_bikes_available'])
@@ -66,9 +67,9 @@ def show_station_map(user_loc, closest_station, data, profile='foot'):
             fill_color=marker_color,
             fill_opacity=0.7,
             popup=folium.Popup(f"Station ID: {row['station_id']}<br>"
-                                f"Total Bikes Available: {row['num_bikes_available']}<br>"
-                                f"Mechanical: {row['mechanical']}<br>"
-                                f"E-Bike: {row['ebike']}", max_width=300)
+                                f"Mechanical bikes: {row['mechanical']}<br>"
+                                f"E-bikes: {row['ebike']}<br>"
+                                f"Docks available: {row['num_docks_available']}", max_width=300)
         ).add_to(m1)
     folium.Marker(
         location=user_loc,
@@ -79,9 +80,9 @@ def show_station_map(user_loc, closest_station, data, profile='foot'):
     folium.Marker(location=(closest_station[1], closest_station[2]),
                     icon=folium.Icon(color="red", icon="bicycle", prefix="fa"),
                     tooltip=folium.Tooltip(f"Station ID: {closest_station[0]}<br>"
-                                f"Total Bikes Available: {closest_station_data['num_bikes_available']}<br>"
-                                f"Mechanical: {closest_station_data['mechanical']}<br>"
-                                f"E-Bike: {closest_station_data['ebike']}")
+                                f"Mechanical bikes: {closest_station_data['mechanical']}<br>"
+                                f"E-bikes: {closest_station_data['ebike']}<br>"
+                                f"Docks available: {closest_station_data['num_docks_available']}")
                     ).add_to(m1)
     coordinates, duration = run_osrm(closest_station, user_loc, profile)
     folium.PolyLine(
@@ -91,20 +92,19 @@ def show_station_map(user_loc, closest_station, data, profile='foot'):
         tooltip=f"ETA: {duration} min",
     ).add_to(m1)
     folium_static(m1)
-    with cols[2]:
-        st.metric(label=":green[Travel Time (min)]", value=duration)
+    # Replace metric using placeholder to avoid ghosting
+    metric_placeholder.metric(label=":green[Travel Time (min)]", value=duration)
 
 # sidebar options
 with st.sidebar:
     with st.form("search_form"):
         bike_method = st.selectbox("Renting or returning?", ["Rent", "Return"])
         
-        if bike_method == "Rent":
-            input_bike_modes = st.multiselect(
-                "Select bike type",
-                ["Mechanical", "E-bike"],
-            )
-        
+        input_bike_modes = st.multiselect(
+            "Select bike type",
+            ["Mechanical", "E-bike"],
+        )
+    
         st.subheader("My Location")
         input_street = st.text_input("Street address", "")
         # driving = st.checkbox("I'm driving")
@@ -124,22 +124,26 @@ with st.sidebar:
         else:
             st.markdown(":red[Enter an address]")
 
-# Create a container for the map to avoid ghost elements
-map_container = st.container()
+# Use empty() to replace map content cleanly without ghosting
+map_placeholder = st.empty()
 
-with map_container:
-    # generic map
-    if not submit_rent and not submit_return:
-        with st.spinner('Generating map...'):
+# generic map
+if not submit_rent and not submit_return:
+    with map_placeholder.container():
+        with st.spinner('Loading map...'):
             m = create_generic_map(data)
             folium_static(m)
 
-    elif submit_rent and input_street != "" and my_loc != '':
+    travel_time_placeholder.empty()
+
+elif submit_rent and input_street != "" and my_loc != '':
+    with map_placeholder.container():
         with st.spinner('Finding nearest station with bikes...'):
             closest_station = get_bike_avail(my_loc, data, input_bike_modes)
-            show_station_map(my_loc, closest_station, data, profile='foot')
+            show_station_map(my_loc, closest_station, data, travel_time_placeholder, profile='foot')
 
-    elif submit_return and input_street != "" and my_loc != '':
+elif submit_return and input_street != "" and my_loc != '':
+    with map_placeholder.container():
         with st.spinner('Finding nearest station with available docks...'):
             closest_station = get_dock_avail(my_loc, data)
-            show_station_map(my_loc, closest_station, data, profile='bike')
+            show_station_map(my_loc, closest_station, data, travel_time_placeholder, profile='bike')
