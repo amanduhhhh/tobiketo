@@ -1,23 +1,20 @@
 # 🚲 To Bike To - Toronto Bike Share Finder
 
-A Streamlit web app to help you find the nearest Toronto Bike Share station with available bikes or docks.
+A web app to help you find the nearest Toronto Bike Share station with available bikes or docks.
 
 **Live App:** [to-bike-to.streamlit.app](https://to-bike-to.streamlit.app)
 
 ## Features
 
-- Interactive map showing all Toronto Bike Share stations
+- Interactive map showing all Toronto Bike Share stations in real time!
 - Find nearest station with available bikes or docks
 - Walking and biking route calculations
 - Real-time travel time estimates
-- Address geocoding to find your location
-- Custom dark theme
 
 ## Tech Stack
 
+- **Pandas** - Data 
 - **Streamlit** - Web app framework
-- **Pandas** - Data processing
-- **Toronto Open Data** - Real-time bike share station data via [GBFS API](https://tor.publicbikesystem.net/ube/gbfs/v1/en/)
 - **Folium** - Interactive map visualization
 - **Google Maps API** - Geocoding and route directions
 - **Geopy** - Distance calculations
@@ -29,8 +26,9 @@ Real-time bike share data is fetched from the Toronto Public Bike System GBFS AP
 - Station locations and information
 
 ## Screenshots
+<img width="1622" height="1458" alt="image" src="https://github.com/user-attachments/assets/0e1b5ec4-2a58-46f4-a451-7e76b2a4d5b7" />
+<img width="2651" height="1452" alt="image" src="https://github.com/user-attachments/assets/dd570594-3dd6-4bef-b3ac-e21685c752b4" />
 
-_Coming soon..._
 
 ## How It Works
 
