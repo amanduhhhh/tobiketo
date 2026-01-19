@@ -4,8 +4,8 @@ import json
 import pandas as pd  # for data
 import datetime as dt  
 from geopy.distance import geodesic  # distance calcs
-from geopy.geocoders import Nominatim  # geocoding
 import streamlit as st  # web app framework
+import googlemaps
 
 # Map marker colors
 GREEN = '#50c468'
@@ -71,18 +71,20 @@ def get_mark_colour(num_bikes_available):
 @st.cache_data(ttl=86400)  
 def geocode(address):
     try:
-        geolocator = Nominatim(
-            user_agent="to-bike-to/1.0 (amandaxi2024@gmail.com)",
-            timeout=10
-        )
-        location = geolocator.geocode(address)
+        gmaps = googlemaps.Client(key=st.secrets["GOOGLE_MAPS_API_KEY"])
+        result = gmaps.geocode(address)
 
-        if location is None:
-            print(f"Geocoding returned None for address: {address}")
+        if not result:
+            print(f"Geocoding returned no results for address: {address}")
             return ''
-        else:
-            print(f"Successfully geocoded: {address} -> ({location.latitude}, {location.longitude})")
-            return (location.latitude, location.longitude)
+        
+        location = result[0]['geometry']['location']
+        lat = location['lat']
+        lon = location['lng']
+        
+        print(f"Successfully geocoded: {address} -> ({lat}, {lon})")
+        return (lat, lon)
+        
     except Exception as e:
         print(f"Error geocoding address '{address}': {type(e).__name__} - {e}")
         return ''
@@ -126,25 +128,54 @@ def get_dock_avail(location, df):
 def run_osrm(dest_station, my_loc, profile='foot'):
     if not dest_station or not my_loc or len(dest_station) < 3:
         return [], 0
-    start = f"{my_loc[1]},{my_loc[0]}"
-    end = f"{dest_station[2]},{dest_station[1]}"
-    url = f"http://router.project-osrm.org/route/v1/{profile}/{start};{end}?geometries=geojson"
-
-    req = urllib.request.Request(url, headers={'Content-type': 'application/json'})
-
+    
     try:
-        with urllib.request.urlopen(req) as response:
-            route_json = json.loads(response.read().decode())
-            print("API call status:", response.getcode())
+        mode_map = {
+            'foot': 'walking',
+            'bike': 'bicycling'
+        }
+        google_mode = mode_map.get(profile, 'walking')
+
+        gmaps = googlemaps.Client(key=st.secrets["GOOGLE_MAPS_API_KEY"])
         
-        if 'routes' not in route_json or len(route_json['routes']) == 0:
+        origin = (my_loc[0], my_loc[1])  
+        destination = (dest_station[1], dest_station[2])  
+        
+        result = gmaps.directions(
+            origin=origin,
+            destination=destination,
+            mode=google_mode
+        )
+        
+        if not result or len(result) == 0:
+            print(f"No route found from {origin} to {destination}")
             return [], 0
 
-        coord_lst = route_json['routes'][0]['geometry']['coordinates']
-        coords = [(coord[1], coord[0]) for coord in coord_lst]
+        route = result[0]
+        coords = []
 
-        duration = ceil(route_json['routes'][0]['duration'] / 60)
+        for leg in route['legs']:
+            start_lat = leg['start_location']['lat']
+            start_lng = leg['start_location']['lng']
+            coords.append((start_lat, start_lng))
+
+            for step in leg['steps']:
+                end_lat = step['end_location']['lat']
+                end_lng = step['end_location']['lng']
+                coords.append((end_lat, end_lng))
+        
+
+        total_duration_seconds = sum(leg['duration']['value'] for leg in route['legs'])
+        duration = ceil(total_duration_seconds / 60)
+        
+        print(f"Google Directions: Route found, {duration} min, {len(coords)} points")
         return coords, duration
-    except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError) as e:
-        print(f"Error getting route: {e}")
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error getting route from Google Directions: {type(e).__name__} - {error_msg}")
+
+        if "REQUEST_DENIED" in error_msg or "ApiError" in str(type(e)):
+            print("   Make sure Directions API is enabled and API key restrictions allow your IP/domain")
+        
         return [], 0

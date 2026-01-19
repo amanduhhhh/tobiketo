@@ -85,15 +85,22 @@ def show_station_map(user_loc, closest_station, data, metric_placeholder, profil
                                 f"Docks available: {closest_station_data['num_docks_available']}")
                     ).add_to(m1)
     coordinates, duration = run_osrm(closest_station, user_loc, profile)
-    folium.PolyLine(
-        locations=coordinates,
-        color="blue",
-        weight=5,
-        tooltip=f"ETA: {duration} min",
-    ).add_to(m1)
+    
+    # Only draw route line if coordinates were successfully retrieved
+    if coordinates and len(coordinates) > 0:
+        folium.PolyLine(
+            locations=coordinates,
+            color="blue",
+            weight=5,
+            tooltip=f"ETA: {duration} min",
+        ).add_to(m1)
+        metric_placeholder.metric(label=":green[Travel Time (min)]", value=duration)
+    else:
+        # Show error message if route couldn't be calculated
+        st.warning("⚠️ Could not calculate route. Please check API key restrictions in Google Cloud Console.")
+        metric_placeholder.empty()  # Clear travel time metric
+    
     folium_static(m1)
-    # Replace metric using placeholder to avoid ghosting
-    metric_placeholder.metric(label=":green[Travel Time (min)]", value=duration)
 
 # sidebar options
 with st.sidebar:
