@@ -101,6 +101,12 @@ def show_station_map(user_loc, closest_station, data, metric_placeholder, profil
         metric_placeholder.empty()  # Clear travel time metric
     
     folium_static(m1)
+    
+    # maps link
+    mode_map = {'foot': 'walking', 'bike': 'bicycling'}
+    google_mode = mode_map.get(profile, 'walking')
+    google_maps_url = f"https://www.google.com/maps/dir/?api=1&origin={user_loc[0]},{user_loc[1]}&destination={closest_station[1]},{closest_station[2]}&travelmode={google_mode}"
+    st.markdown(f'<a href="{google_maps_url}" target="_blank" style="text-decoration: underline; color: #d6d6d6;">Open with Google Maps</a>', unsafe_allow_html=True)
 
 # sidebar options
 with st.sidebar:
