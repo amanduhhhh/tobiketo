@@ -1,4 +1,4 @@
-# 🚲 To Bike To - Toronto Bike Share Finder
+# 🚲 To-bike-to - Toronto Bike Share Finder
 
 A web app to help you find the nearest Toronto Bike Share station with available bikes or docks.
 
