@@ -26,7 +26,7 @@ Please don't abuse my api 😊
 
 ## Data Source
 
-Real-time bike share data is fetched from the Toronto Public Bike System GBFS API:
+Real-time bike share data is fetched from the Toronto Open Data API:
 - Station status and bike availability
 - Station locations and information
 
